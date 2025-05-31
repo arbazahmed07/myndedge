@@ -18,7 +18,7 @@ mongoose.connect(MONGODB_URI)
 
 // Setup CORS with specific configuration for credentials
 app.use(cors({
-  origin: 'http://localhost:8080', // Your frontend origin
+  origin: 'https://myndedge.vercel.app', // Your frontend origin
   credentials: true, // Allow credentials
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
