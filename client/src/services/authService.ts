@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:5000";
+const API_URL = "https://myndedge.onrender.com";
 
 export interface LoginCredentials {
   email: string;
