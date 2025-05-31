@@ -3,6 +3,7 @@ export interface Item {
   name: string;
   price: number;
   stock: number;
+  availableStock?: number; // Track available stock separately
   image: string;
 }
 

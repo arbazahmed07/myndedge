@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Item, CartItem, Offer } from '../types';
 import { initialItems, initialOffers } from '../data/mockData';
@@ -13,7 +12,7 @@ const CartWrapper = () => {
 
   // Load cart from localStorage on mount
   useEffect(() => {
-    const savedCart = localStorage.getItem('lovable-cart');
+    const savedCart = localStorage.getItem('cart');
     if (savedCart) {
       setCart(JSON.parse(savedCart));
     }
@@ -21,26 +20,47 @@ const CartWrapper = () => {
 
   // Save cart to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('lovable-cart', JSON.stringify(cart));
+    localStorage.setItem('cart', JSON.stringify(cart));
   }, [cart]);
 
   const updateCartQuantity = (itemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
+      // When removing from cart, restore the stock
+      const cartItem = cart.find(ci => ci.item.id === itemId);
+      if (cartItem) {
+        setItems(prevItems => prevItems.map(i => 
+          i.id === itemId ? 
+            { ...i, availableStock: (i.availableStock || 0) + cartItem.quantity } : i
+        ));
+      }
+      
       setCart(prevCart => prevCart.filter(ci => ci.item.id !== itemId));
       return;
     }
 
     const item = items.find(i => i.id === itemId);
     if (!item) return;
-
-    if (newQuantity > item.stock) {
+    
+    // Get the current quantity in cart
+    const currentCartItem = cart.find(ci => ci.item.id === itemId);
+    const currentQty = currentCartItem?.quantity || 0;
+    const qtyDifference = newQuantity - currentQty;
+    
+    // Check if we have enough available stock
+    if (qtyDifference > 0 && (item.availableStock || 0) < qtyDifference) {
       toast({
         title: "Stock Limit Reached",
-        description: `Cannot add more ${item.name}. Only ${item.stock} available.`,
+        description: `Cannot add more ${item.name}. Only ${item.availableStock} available.`,
         variant: "destructive"
       });
       return;
     }
+
+    // Update the available stock
+    setItems(prevItems => prevItems.map(i => 
+      i.id === itemId ? 
+        { ...i, availableStock: (i.availableStock || 0) - qtyDifference } : i
+    ));
 
     setCart(prevCart =>
       prevCart.map(ci =>
@@ -57,6 +77,18 @@ const CartWrapper = () => {
 
   const removeFromCart = (itemId: string) => {
     const item = items.find(i => i.id === itemId);
+    if (!item) return;
+    
+    // Get the current quantity in cart
+    const cartItem = cart.find(ci => ci.item.id === itemId);
+    if (cartItem) {
+      // Restore the stock when removing from cart
+      setItems(prevItems => prevItems.map(i => 
+        i.id === itemId ? 
+          { ...i, availableStock: (i.availableStock || 0) + cartItem.quantity } : i
+      ));
+    }
+    
     setCart(prevCart => prevCart.filter(ci => ci.item.id !== itemId));
     
     toast({
@@ -109,7 +141,7 @@ const CartWrapper = () => {
 
     setItems(updatedItems);
     setCart([]);
-    localStorage.removeItem('lovable-cart');
+    localStorage.removeItem('cart');
 
     toast({
       title: "Order Placed Successfully!",

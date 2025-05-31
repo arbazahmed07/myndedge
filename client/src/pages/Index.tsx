@@ -27,6 +27,19 @@ const Index = () => {
     });
   }, []);
 
+  // Load cart from localStorage on mount
+  useEffect(() => {
+    const savedCart = localStorage.getItem('cart');
+    if (savedCart) {
+      setCart(JSON.parse(savedCart));
+    }
+  }, []);
+
+  // Save cart to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('cart', JSON.stringify(cart));
+  }, [cart]);
+
   // Handle toast messages to avoid render cycle issues
   useEffect(() => {
     if (toastMessage) {
@@ -45,7 +58,7 @@ const Index = () => {
 
   // Cart functions
   const addToCart = (item: Item) => {
-    if (item.stock === 0) {
+    if (!item.availableStock || item.availableStock === 0) {
       setToastMessage({
         title: "Out of Stock",
         description: `${item.name} is currently out of stock.`,
@@ -54,19 +67,16 @@ const Index = () => {
       return;
     }
 
+    // Update the available stock for the item
+    setItems(prevItems => prevItems.map(i => 
+      i.id === item.id ? { ...i, availableStock: (i.availableStock || i.stock) - 1 } : i
+    ));
+
     setCart(prevCart => {
       const existingItem = prevCart.find(ci => ci.item.id === item.id);
       
       if (existingItem) {
-        if (existingItem.quantity >= item.stock) {
-          setToastMessage({
-            title: "Stock Limit Reached",
-            description: `Cannot add more ${item.name}. Only ${item.stock} available.`,
-            variant: "destructive"
-          });
-          return prevCart;
-        }
-        
+        // No need to check stock here as we've already updated it
         const updatedCart = prevCart.map(ci =>
           ci.item.id === item.id
             ? { 
@@ -78,13 +88,18 @@ const Index = () => {
         );
         
         console.log(`Added ${item.name} to cart. New quantity: ${existingItem.quantity + 1}`);
-        setToastMessage({
-          title: "Added to Cart",
-          description: `${item.name} added to cart.`
-        });
+        
+        // Set toast message outside of state update
+        setTimeout(() => {
+          setToastMessage({
+            title: "Added to Cart",
+            description: `${item.name} added to cart.`
+          });
+        }, 0);
         
         return updatedCart;
       } else {
+        // Adding new item to cart
         const newCartItem: CartItem = {
           item,
           quantity: 1,
@@ -92,10 +107,14 @@ const Index = () => {
         };
         
         console.log(`Added new item ${item.name} to cart`);
-        setToastMessage({
-          title: "Added to Cart",
-          description: `${item.name} added to cart.`
-        });
+        
+        // Set toast message outside of state update
+        setTimeout(() => {
+          setToastMessage({
+            title: "Added to Cart",
+            description: `${item.name} added to cart.`
+          });
+        }, 0);
         
         return [...prevCart, newCartItem];
       }
@@ -103,22 +122,40 @@ const Index = () => {
   };
 
   const updateCartQuantity = (itemId: string, newQuantity: number) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+    
+    // Get the current quantity in the cart
+    const currentCartItem = cart.find(ci => ci.item.id === itemId);
+    const currentQty = currentCartItem?.quantity || 0;
+    
     if (newQuantity <= 0) {
+      // When removing from cart, restore the stock
+      setItems(prevItems => prevItems.map(i => 
+        i.id === itemId ? 
+          { ...i, availableStock: (i.availableStock || 0) + currentQty } : i
+      ));
       removeFromCart(itemId);
       return;
     }
 
-    const item = items.find(i => i.id === itemId);
-    if (!item) return;
-
-    if (newQuantity > item.stock) {
+    const qtyDifference = newQuantity - currentQty;
+    
+    // Check if we have enough available stock
+    if (qtyDifference > 0 && (item.availableStock || 0) < qtyDifference) {
       setToastMessage({
         title: "Stock Limit Reached",
-        description: `Cannot add more ${item.name}. Only ${item.stock} available.`,
+        description: `Cannot add more ${item.name}. Only ${item.availableStock} available.`,
         variant: "destructive"
       });
       return;
     }
+
+    // Update the available stock based on quantity change
+    setItems(prevItems => prevItems.map(i => 
+      i.id === itemId ? 
+        { ...i, availableStock: (i.availableStock || 0) - qtyDifference } : i
+    ));
 
     setCart(prevCart =>
       prevCart.map(ci =>
@@ -137,6 +174,18 @@ const Index = () => {
 
   const removeFromCart = (itemId: string) => {
     const item = items.find(i => i.id === itemId);
+    if (!item) return;
+    
+    // Get the current quantity in the cart
+    const currentCartItem = cart.find(ci => ci.item.id === itemId);
+    const currentQty = currentCartItem?.quantity || 0;
+    
+    // When removing from cart, restore the stock
+    setItems(prevItems => prevItems.map(i => 
+      i.id === itemId ? 
+        { ...i, availableStock: (i.availableStock || 0) + currentQty } : i
+    ));
+    
     setCart(prevCart => prevCart.filter(ci => ci.item.id !== itemId));
     
     console.log(`Removed ${item?.name} from cart`);

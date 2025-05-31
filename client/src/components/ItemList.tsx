@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Item, CartItem } from '../types';
 import { ShoppingCart } from 'lucide-react';
@@ -24,7 +23,8 @@ const ItemList: React.FC<ItemListProps> = ({ items, onAddToCart, cart }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {items.map((item) => {
           const inCart = getCartQuantity(item.id);
-          const isOutOfStock = item.stock === 0;
+          const availableStock = item.availableStock !== undefined ? item.availableStock : item.stock;
+          const isOutOfStock = availableStock === 0;
           
           return (
             <div
@@ -49,7 +49,7 @@ const ItemList: React.FC<ItemListProps> = ({ items, onAddToCart, cart }) => {
                   <span className={`text-sm font-medium ${
                     isOutOfStock ? 'text-red-500' : 'text-green-600'
                   }`}>
-                    {isOutOfStock ? 'Out of Stock' : `${item.stock} in stock`}
+                    {isOutOfStock ? 'Out of Stock' : `${availableStock} available`}
                   </span>
                   {inCart > 0 && (
                     <span className="text-sm bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
